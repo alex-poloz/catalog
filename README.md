@@ -58,7 +58,7 @@ The application will start on http://localhost:8080
 ```bash
 curl -i -X POST http://localhost:8080/api/v1/books \
   -H "Content-Type: application/json" \
-  -d '{"isbn":"0-13-187248-6","title":"Thinking in Java","author":"Method…","publicationYear":2006,"price":{"uah":400.00}}'
+  -d '{"isbn":"0131872486","title":"Thinking in Java","author":"Method…","publicationYear":2006,"price":{"uah":400.00}}'
 ```
 
 2) List books (pagination + sort)
@@ -137,6 +137,7 @@ The Swagger UI provides a convenient interface to:
 ### Currency Conversion
 - **Formula**: `price.eur = price.uah / exchange_rate`
 - **Rate Source**: NBU (National Bank of Ukraine) API - https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=EUR&json
+- **Initialization**: On application startup, the exchange rate is automatically fetched from NBU API and saved to the database. If NBU is unavailable, a default rate of 40.00 is used.
 - **Update Schedule**: Daily at 09:00 (Europe/Kiev timezone) via Quartz Scheduler
 - **Rate Storage**: Only the current exchange rate is stored in the database (previous rates are deleted on update)
 - **Automatic Recalculation**: When the exchange rate is updated, EUR prices for all books are automatically recalculated

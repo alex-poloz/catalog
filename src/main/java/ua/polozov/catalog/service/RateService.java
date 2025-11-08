@@ -1,5 +1,6 @@
 package ua.polozov.catalog.service;
 
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +39,44 @@ public class RateService {
         this.restTemplate = restTemplate;
         this.nbuUrl = nbuUrl;
         this.lock = lock;
+    }
+
+    @PostConstruct
+    public void initializeRate() {
+        log.info("Initializing exchange rate on application startup...");
+        try {
+            // Check if rate already exists in database
+            BigDecimal existingRate = getCurrentRate();
+            if (existingRate != null) {
+                log.info("Exchange rate already exists in database: {}", existingRate);
+                return;
+            }
+
+            // Fetch rate from NBU API
+            BigDecimal rate = fetchRateFromNbu();
+            if (rate != null) {
+                // Save rate without recalculating books (no books exist yet on startup)
+                rateRepository.deleteAll();
+                Rate newRate = new Rate(LocalDateTime.now(), rate);
+                rateRepository.save(newRate);
+                log.info("Successfully initialized exchange rate from NBU: {}", rate);
+            } else {
+                log.warn("Failed to fetch rate from NBU on startup. Setting default rate to 40.00");
+                // Fallback: set default rate
+                Rate defaultRate = new Rate(LocalDateTime.now(), new BigDecimal("40.00"));
+                rateRepository.save(defaultRate);
+            }
+        } catch (Exception e) {
+            log.error("Error initializing exchange rate on startup", e);
+            // Set default rate as fallback
+            try {
+                Rate defaultRate = new Rate(LocalDateTime.now(), new BigDecimal("40.00"));
+                rateRepository.save(defaultRate);
+                log.info("Set default exchange rate to 40.00 due to initialization error");
+            } catch (Exception ex) {
+                log.error("Failed to set default rate", ex);
+            }
+        }
     }
 
     @Transactional

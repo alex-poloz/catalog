@@ -9,7 +9,7 @@ import jakarta.validation.Valid;
 public record BookRequest(
         @NotNull(message = "isbn is required")
         @Pattern(regexp = "(?:\\d{9}[\\dXx]|\\d{13})", message = "isbn must be ISBN-10 or ISBN-13")
-        @Schema(description = "ISBN (ISBN-10 or ISBN-13)", example = "0-13-187248-6", required = true)
+        @Schema(description = "ISBN (ISBN-10 or ISBN-13)", example = "0131872486", required = true)
         String isbn,
 
         @NotNull(message = "title is required")

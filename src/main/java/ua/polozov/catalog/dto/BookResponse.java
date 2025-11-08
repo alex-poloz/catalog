@@ -7,7 +7,7 @@ public record BookResponse(
         @Schema(description = "Book database ID", example = "1")
         Long id,
 
-        @Schema(description = "ISBN", example = "0-13-187248-6")
+        @Schema(description = "ISBN", example = "0131872486")
         String isbn,
 
         @Schema(description = "Book title", example = "Thinking in Java")

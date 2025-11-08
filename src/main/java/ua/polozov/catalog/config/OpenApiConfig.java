@@ -18,7 +18,7 @@ public class OpenApiConfig {
                         .description("REST API for managing bookstore catalog with automatic EUR currency conversion")
                         .contact(new Contact()
                                 .name("API Support")
-                                .email("support@bookstore.ua")));
+                                .email("poloz.alex@gmail.com")));
     }
 }
 
