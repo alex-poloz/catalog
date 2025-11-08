@@ -1,70 +1,64 @@
 # Catalog API
 
-Simple REST API to manage a bookstore catalog.
+REST API for managing a bookstore catalog with automatic EUR/UAH currency conversion.
 
-Main endpoints
+## Main Endpoints
+
+### Books API
 - POST   /api/v1/books         — create a book (returns 201 Created + Location header)
 - GET    /api/v1/books         — list books (supports pagination: page, size, sort)
 - GET    /api/v1/books/{id}    — get a book by id
 - PUT    /api/v1/books/{id}    — partial update of a book (PATCH-like behavior)
 - DELETE /api/v1/books/{id}    — soft-delete (marks the book as deleted)
 
-OpenAPI / Swagger UI
-- OpenAPI JSON: http://localhost:8080/v3/api-docs
-- Swagger UI:   http://localhost:8080/swagger-ui/index.html
+### Exchange Rate API
+- GET    /api/v1/rate          — get current EUR/UAH exchange rate
+- POST   /api/v1/rate/fetch    — manually fetch rate from NBU API (for testing)
+- POST   /api/v1/rate/update?rate={value} — manually set exchange rate (for testing)
 
-Behavior summary
+## OpenAPI / Swagger UI
+- OpenAPI JSON: http://localhost:8080/v3/api-docs
+- Swagger UI:   http://localhost:8080/swagger-ui.html
+
+## Behavior Summary
 - POST /api/v1/books returns 201 Created and a Location header: /api/v1/books/{id}.
 - PUT /api/v1/books/{id} behaves as a partial update: fields omitted from the request remain unchanged.
 - `isbn` is validated (ISBN-10 or ISBN-13) and is required. `price.uah` is required; `price.eur` is calculated automatically using the current exchange rate.
+- **Currency Conversion**: When a book is created or updated, `price.eur` is automatically calculated as `price.uah / current_rate`.
+- **Automatic Rate Updates**: The exchange rate is fetched from NBU API daily at 09:00 (Europe/Kiev timezone). When the rate is updated, all book EUR prices are automatically recalculated.
 - On ISBN conflict the API returns 409 Conflict.
 - If a book is not found the API returns 404 Not Found using Problem Details (RFC 7807).
 - DELETE is a soft delete: the book is marked deleted and excluded from list results.
 
-Database
-- The application uses an in-memory H2 database by default (recommended for tests and local runs).
-- A file-based H2 configuration exists under the `dev` profile, but that profile is not active by default to avoid file-lock problems on Windows.
+## Database
+- The application uses an in-memory H2 database by default (configured in application.properties).
+- No additional configuration is needed to run the application.
 
-Run locally
+## Run Locally
 
-PowerShell (recommended on Windows)
-
-Option A — set environment variable (avoids escaping `;`):
-
-```powershell
-cd C:\Users\Alex\IdeaProjects\catalog
-$env:SPRING_DATASOURCE_URL='jdbc:h2:mem:catalog;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE'
-.\gradlew.bat bootRun --no-daemon --console=plain --info --stacktrace
+Simply run:
+```cmd
+.\gradlew.bat bootRun
 ```
 
-Option B — pass application args via `--args`:
+The application will start on http://localhost:8080
 
-```powershell
-cd C:\Users\Alex\IdeaProjects\catalog
-.\gradlew.bat bootRun --no-daemon --console=plain --info --stacktrace --args='--spring.datasource.url=jdbc:h2:mem:catalog;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE'
-```
-
-CMD (cmd.exe):
+## Run Tests
 
 ```cmd
-cd C:\Users\Alex\IdeaProjects\catalog
-.\gradlew.bat -Dspring.datasource.url="jdbc:h2:mem:catalog;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE" bootRun --no-daemon --console=plain --info --stacktrace
+.\gradlew.bat test
 ```
 
-Run tests
+## API Examples (curl)
 
-```cmd
-.\gradlew.bat clean test --no-daemon --stacktrace
-```
-
-Examples (curl)
+### Books API
 
 1) Create book (POST) — returns 201 and Location
 
 ```bash
 curl -i -X POST http://localhost:8080/api/v1/books \
   -H "Content-Type: application/json" \
-  -d '{"isbn":"1234567890123","title":"Integration Title","author":"Author","publicationYear":2021,"price":{"uah":200.00}}'
+  -d '{"isbn":"0-13-187248-6","title":"Thinking in Java","author":"Method…","publicationYear":2006,"price":{"uah":400.00}}'
 ```
 
 2) List books (pagination + sort)
@@ -84,7 +78,7 @@ curl -i http://localhost:8080/api/v1/books/1
 ```bash
 curl -i -X PUT http://localhost:8080/api/v1/books/1 \
   -H "Content-Type: application/json" \
-  -d '{"title":"New Title","price":{"uah":300.00}}'
+  -d '{"title":"War and Peace - Updated Edition","price":{"uah":500.00}}'
 ```
 
 5) Soft delete
@@ -93,18 +87,65 @@ curl -i -X PUT http://localhost:8080/api/v1/books/1 \
 curl -i -X DELETE http://localhost:8080/api/v1/books/1
 ```
 
-Swagger / OpenAPI
+### Exchange Rate API
 
-- OpenAPI JSON: http://localhost:8080/v3/api-docs
-- Swagger UI:   http://localhost:8080/swagger-ui/index.html
+6) Get current exchange rate
 
-Troubleshooting
+```bash
+curl -i http://localhost:8080/api/v1/rate
+```
 
-- If `/v3/api-docs` returns HTTP 500, check the application log for stacktrace — the most common cause is a version mismatch between `springdoc` and Spring Framework (NoSuchMethodError referencing ControllerAdviceBean). The project currently uses `org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0`.
-- Avoid redirecting Gradle output into files inside the `build/` folder (for example `> build/log.txt`) on Windows because `clean` may fail due to file locks; prefer writing logs to the project root.
+7) Fetch rate from NBU API
 
-Notes for developers
+```bash
+curl -i -X POST http://localhost:8080/api/v1/rate/fetch
+```
 
-- Code structure: Controller -> Service -> Repository
-- DTOs/Records are used for request/response objects; JPA/DB entities are separate from API contracts.
-- Validation uses Jakarta Bean Validation annotations (e.g. `@NotNull`, `@Pattern`).
+8) Manually set exchange rate
+
+```bash
+curl -i -X POST "http://localhost:8080/api/v1/rate/update?rate=40.50"
+```
+
+## Swagger / OpenAPI Documentation
+
+After starting the application, you can explore the API using:
+
+- **Swagger UI** (interactive documentation): http://localhost:8080/swagger-ui.html
+- **OpenAPI JSON** (raw specification): http://localhost:8080/v3/api-docs
+
+The Swagger UI provides a convenient interface to:
+- View all available endpoints with detailed descriptions
+- Test API operations directly from the browser
+- See request/response schemas and examples
+
+## Troubleshooting
+
+- If `/v3/api-docs` returns HTTP 500, check the application log for stacktrace — the most common cause is a version mismatch between `springdoc` and Spring Framework (NoSuchMethodError referencing ControllerAdviceBean). The project currently uses `org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0` with Spring Boot 3.3.1.
+- If you see `Cannot mutate dependency attributes` error during build, ensure you're using Gradle 8.5 (not 9.x). The project's `gradle-wrapper.properties` is configured for Gradle 8.5.
+- If port 8080 is already in use, stop any running processes or change the port in `application.properties` by adding `server.port=8081`.
+
+## Technical Details
+
+### Architecture
+- **Three-tier architecture**: Controller -> Service -> Repository
+- **DTOs/Records**: Used for request/response objects; JPA/DB entities are separate from API contracts
+- **Validation**: Jakarta Bean Validation annotations (`@NotNull`, `@Pattern`, etc.)
+- **Error Handling**: Global exception handler with RFC 7807 Problem Details format
+- **Transaction Management**: `@Transactional` annotations on service methods
+
+### Currency Conversion
+- **Formula**: `price.eur = price.uah / exchange_rate`
+- **Rate Source**: NBU (National Bank of Ukraine) API - https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=EUR&json
+- **Update Schedule**: Daily at 09:00 (Europe/Kiev timezone) via Quartz Scheduler
+- **Rate Storage**: Only the current exchange rate is stored in the database (previous rates are deleted on update)
+- **Automatic Recalculation**: When the exchange rate is updated, EUR prices for all books are automatically recalculated
+
+### Technologies
+- **Java**: 21
+- **Spring Boot**: 3.3.1
+- **Database**: H2 (in-memory)
+- **Build Tool**: Gradle 8.5
+- **API Documentation**: SpringDoc OpenAPI 2.3.0
+- **Logging**: Logback with Logstash JSON encoder
+- **Scheduler**: Quartz
